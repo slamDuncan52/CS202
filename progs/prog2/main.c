@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <utmp.h>
+#include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
@@ -22,6 +23,7 @@ int main(int argc, char *argv[]){
 	int countFlag = 1;
 	int nameFlag = 1;
 	int count = -1;
+	int numRecords = 0;
 	char *namePoint;
 	count = -1;
 	if(argc == 1){
@@ -53,6 +55,7 @@ int main(int argc, char *argv[]){
 			count = (int)strtol(argv[2], NULL, 10);
 			if(strcmp(argv[3],"-n")){
 				namePoint = argv[3];
+
 			} else {
 				namePoint = argv[1];
 			}
@@ -65,15 +68,23 @@ int main(int argc, char *argv[]){
 			}
 		}
 	}
+
 	if((utmpFile = open(WTMP_FILE, O_RDONLY)) == -1){
 		perror(WTMP_FILE);
 		exit(1);
 	}
 	/* read record */
-	while((read(utmpFile, &current_record, reclen) == reclen) && (current < count || countFlag)){
-		/* display record */
+while((read(utmpFile, &current_record, reclen) == reclen)){
+numRecords++;
+}
+close(utmpFile);
+utmpFile = open(WTMP_FILE, O_RDONLY);
+for(numRecords;numRecords >= 0 && (current < count || countFlag);numRecords--){
+
+lseek(utmpFile,(reclen * (numRecords-1)),SEEK_SET);
+	read(utmpFile, &current_record, reclen);
 		showInfo(&current_record, namePoint, count, nameFlag, countFlag);
-	}
+}
 	printf("\n");
 	/* close utmp */
 	close(utmpFile);
