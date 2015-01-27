@@ -10,10 +10,13 @@
 
 #define SOMETHING 100
 
-int showInfo(struct utmp*,char *namePoint,int count, int nameFlag, int countFlag);
+int showInfo(struct utmp *record, char *namePoint,int count, int nameFlag, int countFlag, pid_t logoutArray[][2]);
 int isNumeric (const char * s);
+void testIfLogin(struct utmp *record, pid_t logoutArray[][2]);
 
 int current = 0;
+int numRecords = 0;
+int logoutCount = 0;
 
 int main(int argc, char *argv[]){
 	/* open utmp */
@@ -23,7 +26,6 @@ int main(int argc, char *argv[]){
 	int countFlag = 1;
 	int nameFlag = 1;
 	int count = -1;
-	int numRecords = 0;
 	char *namePoint;
 	count = -1;
 	if(argc == 1){
@@ -74,17 +76,20 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 	/* read record */
-while((read(utmpFile, &current_record, reclen) == reclen)){
-numRecords++;
-}
-close(utmpFile);
-utmpFile = open(WTMP_FILE, O_RDONLY);
-for(numRecords;numRecords >= 0 && (current < count || countFlag);numRecords--){
+	while((read(utmpFile, &current_record, reclen) == reclen)){
+		numRecords++;
+	}
+	
+	pid_t logoutArray[numRecords][2];
 
-lseek(utmpFile,(reclen * (numRecords-1)),SEEK_SET);
-	read(utmpFile, &current_record, reclen);
-		showInfo(&current_record, namePoint, count, nameFlag, countFlag);
-}
+	close(utmpFile);
+	utmpFile = open(WTMP_FILE, O_RDONLY);
+
+	for(numRecords;numRecords >= 0 && (current < count || countFlag);numRecords--){
+		lseek(utmpFile,(reclen * (numRecords-1)),SEEK_SET);
+		read(utmpFile, &current_record, reclen);
+		showInfo(&current_record, namePoint, count, nameFlag, countFlag, logoutArray);
+	}
 	printf("\n");
 	/* close utmp */
 	close(utmpFile);
@@ -92,7 +97,7 @@ lseek(utmpFile,(reclen * (numRecords-1)),SEEK_SET);
 	return 0;
 }
 
-int showInfo(struct utmp *record, char *namePoint,int count, int nameFlag, int countFlag){
+int showInfo(struct utmp *record, char *namePoint,int count, int nameFlag, int countFlag, pid_t logoutArray[][2]){
 	if(record->ut_type == BOOT_TIME || record->ut_type == USER_PROCESS){
 		if((nameFlag || !strcmp(record->ut_user, namePoint)) && (countFlag || current < count)){
 			printf("%-8.8s ", record->ut_user);
@@ -105,10 +110,31 @@ int showInfo(struct utmp *record, char *namePoint,int count, int nameFlag, int c
 			printf("%-16.16s ", record->ut_host);
 			time_t curTime = record->ut_time;
 			printf("%-16.16s ", ctime(&curTime));
+			testIfLogin(record, logoutArray);
 			printf("\n");
 			current++;
 		}
 	}
+	if(record->ut_type == DEAD_PROCESS){
+			logoutArray[logoutCount][0] = record->ut_pid;
+			logoutArray[logoutCount][1] = record->ut_time;
+			//printf("Logout: %d ", logoutArray[logoutCount][1]);
+			//printf("%-16.16s\n", ctime(&curTime));
+			logoutCount++;
+	}
+}
+
+void testIfLogin(struct utmp *record, pid_t logoutArray[][2]){
+int count;
+for(count = 0; count <= logoutCount;count++){
+	if(record->ut_pid == logoutArray[count][0]){
+			time_t curTime = logoutArray[count][1];
+			printf("- %-4.5s", ctime(&curTime)+11);
+		return;
+	}
+}
+printf("  still logged in");
+return;
 }
 
 int isNumeric (const char * s)
