@@ -10,13 +10,14 @@
 
 #define SOMETHING 100
 
-int showInfo(struct utmp *record, char *namePoint,int count, int nameFlag, int countFlag, pid_t logoutArray[][2]);
+int showInfo(struct utmp *record, char *namePoint,int count, int nameFlag, int countFlag, struct utmp logoutArray[]);
 int isNumeric (const char * s);
-void testIfLogin(struct utmp *record, pid_t logoutArray[][2]);
+void testIfLogin(struct utmp *record, struct utmp logoutArray[]);
 
 int current = 0;
 int numRecords = 0;
 int logoutCount = 0;
+struct utmp swapRecord;
 
 int main(int argc, char *argv[]){
 	/* open utmp */
@@ -80,12 +81,12 @@ int main(int argc, char *argv[]){
 		numRecords++;
 	}
 	
-	pid_t logoutArray[numRecords][2];
+	struct utmp logoutArray[numRecords];
 
 	close(utmpFile);
 	utmpFile = open(WTMP_FILE, O_RDONLY);
 
-	for(numRecords;numRecords >= 0 && (current < count || countFlag);numRecords--){
+	for(numRecords;numRecords > 0 && (current < count || countFlag);numRecords--){
 		lseek(utmpFile,(reclen * (numRecords-1)),SEEK_SET);
 		read(utmpFile, &current_record, reclen);
 		showInfo(&current_record, namePoint, count, nameFlag, countFlag, logoutArray);
@@ -97,7 +98,7 @@ int main(int argc, char *argv[]){
 	return 0;
 }
 
-int showInfo(struct utmp *record, char *namePoint,int count, int nameFlag, int countFlag, pid_t logoutArray[][2]){
+int showInfo(struct utmp *record, char *namePoint,int count, int nameFlag, int countFlag, struct utmp logoutArray[]){
 	if(record->ut_type == BOOT_TIME || record->ut_type == USER_PROCESS){
 		if((nameFlag || !strcmp(record->ut_user, namePoint)) && (countFlag || current < count)){
 			printf("%-8.8s ", record->ut_user);
@@ -116,20 +117,26 @@ int showInfo(struct utmp *record, char *namePoint,int count, int nameFlag, int c
 		}
 	}
 	if(record->ut_type == DEAD_PROCESS){
-			logoutArray[logoutCount][0] = record->ut_pid;
-			logoutArray[logoutCount][1] = record->ut_time;
-			//printf("Logout: %d ", logoutArray[logoutCount][1]);
-			//printf("%-16.16s\n", ctime(&curTime));
+			swapRecord = *record;
+			logoutArray[logoutCount] = swapRecord;
+			time_t curTime = logoutArray[logoutCount].ut_time;
+			/*printf("Logout: %-8.8s ", record->ut_user);
+			printf("%d ", logoutArray[logoutCount]->ut_pid);
+			printf("%-16.16s ", record->ut_line);
+			printf("%-16.16s\n", ctime(&curTime));*/
 			logoutCount++;
 	}
 }
 
-void testIfLogin(struct utmp *record, pid_t logoutArray[][2]){
+void testIfLogin(struct utmp *record, struct utmp logoutArray[]){
 int count;
 for(count = 0; count <= logoutCount;count++){
-	if(record->ut_pid == logoutArray[count][0]){
-			time_t curTime = logoutArray[count][1];
-			printf("- %-4.5s", ctime(&curTime)+11);
+	if(!strcmp(record->ut_user, logoutArray[count].ut_user) && !(strcmp(record->ut_line, logoutArray[count].ut_line))){
+			time_t logoutTime = logoutArray[count].ut_time;
+			time_t loginTime = record->ut_time;
+			long overallTime = (long)difftime(logoutTime, loginTime);
+			printf("- %-4.5s", ctime(&logoutTime)+11);
+			printf("  (%.2ld:%-.2ld)", overallTime/3600, (overallTime/60)%60);  
 		return;
 	}
 }
