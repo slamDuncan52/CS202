@@ -12,6 +12,7 @@ int timeFlag = 0;
 int accessFlag = 0;
 int modFlag = 0;
 int noCreateFlag = 0;
+char customTime[16];
 
 int fileHandle(char *fileName);
 struct utimbuf makeTime(char *fileName);
@@ -21,6 +22,7 @@ int main(int argc, char *argv[]){
 	char *fileNames[argc];
 	while(argc > 1){
 		if(!strcmp(argv[argc-1], "-t")){
+			strcpy(customTime, argv[argc]);
 			timeFlag = 1;
 		} else if(!strcmp(argv[argc-1], "-a")){
 			accessFlag = 1;
@@ -56,16 +58,18 @@ int fileHandle(char *fileName){
 
 struct utimbuf makeTime(char *fileName){
 	struct utimbuf returnTime;
+	struct stat fileStats;
+	stat(fileName, &fileStats);
 	returnTime.actime = time(0);
 	returnTime.modtime = time(0);
 	if(timeFlag){
-
+printf("%s\n", customTime);	
 	}
 
 	if(accessFlag){
-
+	returnTime.actime = fileStats.st_atime;
 	} else if(modFlag){
-
+	returnTime.modtime = fileStats.st_mtime;
 	}
 
 	return returnTime;
