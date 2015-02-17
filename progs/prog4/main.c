@@ -14,6 +14,7 @@ int main(){
 		testPrime(run++);
 	}
 	return 0;
+	
 }
 
 int testPrime(int current){
