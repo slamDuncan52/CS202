@@ -2,8 +2,8 @@
 /* Mitch Duncan                                                              */
 /* Login ID: dunc0474                                                        */
 /* CS-202, Winter 2015                                                       */
-/* Programming Assignment 2                                                  */
-/* Prints a list of user logins, with time and date stamp                    */
+/* Programming Assignment 3                                                  */
+/* Modifies file access times, creates new files if necessary                */
 /*****************************************************************************/
 
 /* INCLUDES */
