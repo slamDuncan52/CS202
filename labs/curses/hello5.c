@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <curses.h>
+#include <unistd.h>
 
 #define LEFTEDGE 10
 #define RIGHTEDGE 30
 #define ROW 10
 
-main(){
+void main(){
 char message[] = "Hello"; char blank[] = "     ";
 int dir = +1; int pos = LEFTEDGE;
 
