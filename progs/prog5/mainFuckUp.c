@@ -31,15 +31,7 @@ int main(int argc, char *argv[]){
 	fileLen = ftell(scrollFile);
 	rewind(scrollFile);
 	scrollText = malloc(fileLen * (sizeof(char)));
-	fread(scrollText, sizeof(char), fileLen, scrollFile);
-	//sanitize the string
-	int charCheck = 0;
-	while(scrollText[charCheck] != '\0'){
-		if(scrollText[charCheck] == '\n' || scrollText[charCheck] == '\t'){
-			scrollText[charCheck] = ' ';
-		}
-		charCheck++;
-	}
+	fread(scrollText, sizeof(char), fileLen, scrollFile);	
 	// scroll the text
 	while(infiniteFlag || once){
 		scroller(scrollText);
@@ -51,7 +43,6 @@ int main(int argc, char *argv[]){
 int scroller(char *inString){
 	int row, col, curChar = 1, strAdvance = 1, endStringFlag = 1;
 	initscr();
-	curs_set(0);
 	clear();
 	getmaxyx(stdscr, row, col);
 	row = row/2;
