@@ -6,7 +6,7 @@
 #define BLOCKSIZE 1000
 
 int appendFlag = 0;
-
+int interuptFlag = 0;
 char * stdInGrab();
 
 int main(int argc, char *argv[]){
@@ -18,7 +18,7 @@ int main(int argc, char *argv[]){
 		if(!strcmp(argv[argCount], "-a")){
 			appendFlag = 1;
 		} else if(!strcmp(argv[argCount], "-i")){
-			signal(SIGINT,SIG_IGN);
+			interuptFlag = 1;
 		} else {
 			fileList[++fileCount] = argv[argCount];
 		}
@@ -46,6 +46,9 @@ char * stdInGrab(){
 	char *returnString;
 	char *sizeSwap;
 	char lineBuffer[BLOCKSIZE];
+	if(interuptFlag){
+		signal(SIGINT, SIG_IGN);
+	}
 
 	sizeSwap = malloc(numOfLines * sizeof(char) * BLOCKSIZE);
 	returnString = malloc(numOfLines * sizeof(char) * BLOCKSIZE);
