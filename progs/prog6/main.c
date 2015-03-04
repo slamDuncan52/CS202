@@ -2,12 +2,13 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 
 #define BLOCKSIZE 1000
 
 int appendFlag = 0;
 int interuptFlag = 0;
-char * stdInGrab();
+char* stdInGrab();
 
 int main(int argc, char *argv[]){
 	/* Handle Args */
@@ -25,8 +26,10 @@ int main(int argc, char *argv[]){
 		argCount++;
 	}
 	/* Grab all the input */
-	char *inputString = stdInGrab();
-
+	char* inputString;
+	inputString = stdInGrab(&inputString);
+	char* printCopy = malloc(sizeof(char) * strlen(inputString));
+	strcpy(printCopy, inputString);
 	/* Write to each file */
 	FILE *currentFile;
 	while(fileCount >= 0){
@@ -35,15 +38,15 @@ int main(int argc, char *argv[]){
 		} else {
 			currentFile = fopen(fileList[fileCount--],"w");
 		}	
-		fputs(inputString,currentFile);
+		fputs(printCopy,currentFile);
 		close(currentFile);
 	}
 	return 0;
 }
 
-char * stdInGrab(){
+char* stdInGrab(char** inputString){
 	int numOfLines = 1;
-	char *returnString;
+	char *returnString = *inputString;
 	char *sizeSwap;
 	char lineBuffer[BLOCKSIZE];
 	if(interuptFlag){
@@ -61,7 +64,8 @@ char * stdInGrab(){
 		}
 		strcat(returnString, lineBuffer);
 		numOfLines++;
+		printf("%s",lineBuffer);
 	}
-	printf("%s",returnString);
+
 	return returnString;
 }
