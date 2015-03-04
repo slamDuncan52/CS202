@@ -1,3 +1,10 @@
+/*****************************************************************************/
+/* Mitch Duncan                                                              */
+/* Login ID: dunc0474                                                        */
+/* CS-202, Winter 2015                                                       */
+/* Programming Assignment 6                                                  */
+/* Takes std in, copies it to files provided as arguments                    */
+/*****************************************************************************/
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -8,8 +15,16 @@
 
 int appendFlag = 0;
 int interuptFlag = 0;
-char* stdInGrab();
+void stdInGrab(const char ** inputString);
 
+/*****************************************************************************/
+/* Function: main                                                            */
+/* Purpose: handles args, handles file IO, calls function to pull stdin      */
+/* Parameters:                                                               */
+/*		int argc     number of arguments passed to program           */
+/*		char *argv[] name of files to print to, additional options   */
+/* Returns:     int          standard 0 return for successful completion     */
+/*****************************************************************************/
 int main(int argc, char *argv[]){
 	/* Handle Args */
 	int argCount = 1;
@@ -26,27 +41,32 @@ int main(int argc, char *argv[]){
 		argCount++;
 	}
 	/* Grab all the input */
-	char* inputString;
-	inputString = stdInGrab(&inputString);
-	char* printCopy = malloc(sizeof(char) * strlen(inputString));
-	strcpy(printCopy, inputString);
+	const char* inputString;
+	stdInGrab(&inputString);
 	/* Write to each file */
 	FILE *currentFile;
 	while(fileCount >= 0){
 		if(appendFlag){
-			currentFile = fopen(fileList[fileCount--], "a");
+			currentFile = fopen(fileList[fileCount--],"a");
 		} else {
 			currentFile = fopen(fileList[fileCount--],"w");
-		}	
-		fputs(printCopy,currentFile);
+		}
+		fputs(inputString,currentFile);
 		close(currentFile);
 	}
 	return 0;
 }
 
-char* stdInGrab(char** inputString){
+/*****************************************************************************/
+/* Function: stdInGrab                                                       */
+/* Purpose: Takes arbitrary amount of stdin, copies it to a single string    */
+/* Parameters:                                                               */
+/*		char** inputString     the memory address of our final string*/
+/* Returns:     void                                                         */
+/*****************************************************************************/
+void stdInGrab(const char** inputString){
 	int numOfLines = 1;
-	char *returnString = *inputString;
+	char *returnString;
 	char *sizeSwap;
 	char lineBuffer[BLOCKSIZE];
 	if(interuptFlag){
@@ -66,6 +86,6 @@ char* stdInGrab(char** inputString){
 		numOfLines++;
 		printf("%s",lineBuffer);
 	}
-
-	return returnString;
+	*inputString = returnString;
+	return;
 }
