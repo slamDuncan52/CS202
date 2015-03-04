@@ -15,7 +15,7 @@
 
 int appendFlag = 0;
 int interuptFlag = 0;
-void stdInGrab(const char ** inputString);
+void stdInGrab(char** fileList, int fileCount);
 
 /*****************************************************************************/
 /* Function: main                                                            */
@@ -41,19 +41,8 @@ int main(int argc, char *argv[]){
 		argCount++;
 	}
 	/* Grab all the input */
-	const char* inputString;
-	stdInGrab(&inputString);
+	stdInGrab(fileList, fileCount);
 	/* Write to each file */
-	FILE *currentFile;
-	while(fileCount >= 0){
-		if(appendFlag){
-			currentFile = fopen(fileList[fileCount--],"a");
-		} else {
-			currentFile = fopen(fileList[fileCount--],"w");
-		}
-		fputs(inputString,currentFile);
-		close(currentFile);
-	}
 	return 0;
 }
 
@@ -64,7 +53,7 @@ int main(int argc, char *argv[]){
 /*		char** inputString     the memory address of our final string*/
 /* Returns:     void                                                         */
 /*****************************************************************************/
-void stdInGrab(const char** inputString){
+void stdInGrab(char** fileList, int fileCount){
 	int numOfLines = 1;
 	char *returnString;
 	char *sizeSwap;
@@ -86,6 +75,15 @@ void stdInGrab(const char** inputString){
 		numOfLines++;
 		printf("%s",lineBuffer);
 	}
-	*inputString = returnString;
+	FILE *currentFile;
+	while(fileCount >= 0){
+		if(appendFlag){
+			currentFile = fopen(fileList[fileCount--],"a");
+		} else {
+			currentFile = fopen(fileList[fileCount--],"w");
+		}
+		fputs(returnString,currentFile);
+		close(currentFile);
+	}
 	return;
 }
