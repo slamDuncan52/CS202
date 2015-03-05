@@ -10,12 +10,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #define BLOCKSIZE 1000
 
 int appendFlag = 0;
 int interuptFlag = 0;
-void stdInGrab(char** fileList, int fileCount);
+void stdInGrab();
 
 /*****************************************************************************/
 /* Function: main                                                            */
@@ -41,8 +42,30 @@ int main(int argc, char *argv[]){
 		argCount++;
 	}
 	/* Grab all the input */
-	stdInGrab(fileList, fileCount);
+	FILE *templateFile;
+	stdInGrab();
+	templateFile = fopen("temp", "r");
 	/* Write to each file */
+	FILE *currentFile;
+	char nextChar;
+	while(fileCount >= 0){
+		if(appendFlag){
+			currentFile = fopen(fileList[fileCount--],"a");
+		} else {
+			currentFile = fopen(fileList[fileCount--],"w");
+		}
+		while(1){
+			nextChar = fgetc(templateFile);
+			if(nextChar == EOF){
+				break;
+			}
+			putc(nextChar, currentFile);
+		}	
+		fclose(currentFile);
+		rewind(templateFile);
+	}
+	fclose(templateFile);
+	unlink("temp");
 	return 0;
 }
 
@@ -53,37 +76,22 @@ int main(int argc, char *argv[]){
 /*		char** inputString     the memory address of our final string*/
 /* Returns:     void                                                         */
 /*****************************************************************************/
-void stdInGrab(char** fileList, int fileCount){
-	int numOfLines = 1;
-	char *returnString;
-	char *sizeSwap;
-	char lineBuffer[BLOCKSIZE];
+void stdInGrab(){
+	FILE *tempFile;
+	tempFile = fopen("temp", "w");
+	int tempFileFD;
+	char curChar;
 	if(interuptFlag){
 		signal(SIGINT, SIG_IGN);
 	}
-
-	sizeSwap = malloc(numOfLines * sizeof(char) * BLOCKSIZE);
-	returnString = malloc(numOfLines * sizeof(char) * BLOCKSIZE);
-	while(fgets(lineBuffer, BLOCKSIZE, stdin) != NULL){
-		if((strlen(lineBuffer) + strlen(returnString)) > (BLOCKSIZE * numOfLines)){
-			strcpy(sizeSwap, returnString);
-			returnString = malloc(numOfLines* sizeof(char) * BLOCKSIZE);
-			strcpy(returnString, sizeSwap);
-			sizeSwap = malloc(numOfLines * sizeof(char) * BLOCKSIZE);
-		}
-		strcat(returnString, lineBuffer);
-		numOfLines++;
-		printf("%s",lineBuffer);
+	/* Redirect stdin to my temp file */
+	//tempFileFD = open("temp", O_WRONLY);
+	//pipe(pipeArray);
+	while((curChar = getchar()) != EOF){
+		putc(curChar, stdout);	
+		putc(curChar,tempFile);
 	}
-	FILE *currentFile;
-	while(fileCount >= 0){
-		if(appendFlag){
-			currentFile = fopen(fileList[fileCount--],"a");
-		} else {
-			currentFile = fopen(fileList[fileCount--],"w");
-		}
-		fputs(returnString,currentFile);
-		close(currentFile);
-	}
+	/* Close the pipe */
+	fclose(tempFile);
 	return;
 }
