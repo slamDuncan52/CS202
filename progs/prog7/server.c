@@ -13,15 +13,19 @@
 #define HOSTLEN 256
 #define BACKLOG 1
 
+#define HOLD 0
+#define ROLL 1
+
 struct player{
 	char* playerName;
-	int points;
+	int score;
+	char* stringScore;
 };
 
 char p1[100];
 char p2[100];
-struct player firstPlayer = {p1, 0};
-struct player secondPlayer = {p2, 0};
+struct player firstPlayer = {p1, 0, "000"};
+struct player secondPlayer = {p2, 0, "000"};
 int havePlayer = 0;
 int readyToPlay = 0;
 int isChild = 0;
@@ -94,6 +98,12 @@ void process_request(int fd){
 }
 
 int playPig(struct player p1, struct player p2, int fd){
+//Report scores
+char scoreBuf[7];
+strcat(scoreBuf,p1.stringScore);
+scoreBuf[4] = ' ';
+strcat(scoreBuf,p2.stringScore);
+write(fd,scoreBuf,7);
 int roll = 6 + rand() / (RAND_MAX / (1 - 6 + 1) + 1);
 printf("%d", roll);
 }

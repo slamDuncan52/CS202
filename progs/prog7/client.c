@@ -11,6 +11,9 @@
 #define LOSE 2
 #define TIE 3
 
+#define HOLD 0
+#define ROLL 1
+
 int connect_to_server(char*, int);
 void talkServer(int fd, char* msg);
 void handShake();
@@ -43,8 +46,8 @@ int main(int argc, char* argv[]){
 	talkServer(fd, user);
 	handShake();
 	while(!gameStatus){
-playTurn();
-gameStatus = updateStatus();
+		playTurn();
+		gameStatus = updateStatus();
 	}
 	close(fd);
 	return 0;
@@ -69,7 +72,11 @@ void handShake(){
 }
 
 int playTurn(){
-	char choice;
+	char choice = ' ';
+	char score_buf[7];
+	read(fd, score_buf,7);
+	curScore = atoi(score_buf);
+	oppScore = atoi(score_buf+4);
 	printf("Your Current Total is: %d\n", curScore);
 	printf("Your Opponent's Total is: %d\n", oppScore);
 	printf("The Amount Rolled This Round is: %d\n", curRoll);
@@ -78,17 +85,20 @@ int playTurn(){
 }
 
 int updateStatus(){
-int status;
-if(curScore >= 100 && curScore > oppScore){
-status = WIN;
-} else if(oppScore >= 100 && oppScore > curScore){
-status = LOSE;
-} else if(curScore >= 100 && curScore == oppScore){
-status = TIE;
-} else {
-status = 0;
-}
-return status;
+	int status;
+	if(curScore >= 100 && curScore > oppScore){
+		status = WIN;
+		printf("Congratulations! You win!");
+	} else if(oppScore >= 100 && oppScore > curScore){
+		status = LOSE;
+		printf("You lost, better luck next time!");
+	} else if(curScore >= 100 && curScore == oppScore){
+		status = TIE;
+		printf("The game ends in a tie.");
+	} else {
+		status = 0;
+	}
+	return status;
 }
 
 
