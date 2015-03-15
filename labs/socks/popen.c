@@ -12,5 +12,6 @@ while(fgets(buf,100,fp) != NULL)
 	printf("%3d %s", i++, buf);
 
 pclose(fp);
+printf("%ld", RAND_MAX);
 return 0;
 }

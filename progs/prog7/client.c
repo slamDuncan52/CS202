@@ -1,34 +1,95 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <unistd.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 
+#define WIN 1
+#define LOSE 2
+#define TIE 3
+
 int connect_to_server(char*, int);
-void talkServer(int fd);
+void talkServer(int fd, char* msg);
+void handShake();
+int playTurn();
+int updateStatus();
 
-int main(){
-	int fd;
+char user[100];
+char host[100];
 
-	char * host = "syslab09";
-	int port = 13000;
+int fd;
+int gameStatus = 0;
+int curScore = 0;
+int oppScore = 0;
+int curRoll = 0;
+
+int main(int argc, char* argv[]){
+	int port;
+	if((argc > 1) && atoi(argv[1]) != 0){
+		port = atoi(argv[1]);
+	} else {
+		port = 50000;
+	}
+	printf("Welcome to Herd Pig! Please enter hostname >>> ");
+	scanf("%s",&host);
+	printf("Please enter a username (100 characters or less) >>> ");
+	scanf("%s",&user);
 	fd = connect_to_server(host, port);
-	printf("Connected\n");
+	printf("Connected to Host: %s @ Port: %d\n",host,port);
 	if(fd == -1) exit(1);
-	talkServer(fd);
+	talkServer(fd, user);
+	handShake();
+	while(!gameStatus){
+playTurn();
+gameStatus = updateStatus();
+	}
 	close(fd);
 	return 0;
 }
 
-void talkServer(int fd){
-	printf("Sent.\n");
+void talkServer(int fd, char* msg){
+	write(fd, msg, 100);
+	printf("Sent\n");
 }
 
+void handShake(){
+	while(1){
+		printf("Waiting for opponent...\n");
+		char* handShakeBuf[250];
+		int val = read(fd, handShakeBuf, 250);
+		if(val == 250){
+			printf("%s\n",handShakeBuf);
+			break;
+		}
+		sleep(5);
+	}
+}
 
+int playTurn(){
+	char choice;
+	printf("Your Current Total is: %d\n", curScore);
+	printf("Your Opponent's Total is: %d\n", oppScore);
+	printf("The Amount Rolled This Round is: %d\n", curRoll);
+	printf("Do you wish to (r)oll or (h)old? >>> ");
+	scanf("%c", &choice);
+}
 
-
+int updateStatus(){
+int status;
+if(curScore >= 100 && curScore > oppScore){
+status = WIN;
+} else if(oppScore >= 100 && oppScore > curScore){
+status = LOSE;
+} else if(curScore >= 100 && curScore == oppScore){
+status = TIE;
+} else {
+status = 0;
+}
+return status;
+}
 
 
 
