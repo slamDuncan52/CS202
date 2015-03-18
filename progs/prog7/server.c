@@ -25,14 +25,13 @@ struct player{
 	char* playerName;
 	int score;
 	int tempPoints;
-	char* stringScore;
 	int choice;
 };
 
 char p1[100];
 char p2[100];
-struct player firstPlayer = {0,p1, 0, 0, "000", HOLD};
-struct player secondPlayer = {0,p2, 0, 0, "000", HOLD};
+struct player firstPlayer = {0,p1, 0, 0, ROLL};
+struct player secondPlayer = {0,p2, 0, 0, ROLL};
 int isChild = 0;
 
 int make_server_socket_q(int portnum, int backlog);
@@ -40,8 +39,9 @@ int make_server_socket(int portnum);
 void child_waiter(int signum);
 void process_request(int fd1, int fd2);
 int playPig(struct player p1, struct player p2);
-void playTurn(struct player p1, struct player p2);
-int updateStatus(struct player p1, struct player p2);
+int playTurn(struct player *p1, struct player *p2);
+int playRound(struct player *p1, struct player *p2);
+int updateStatus(struct player *p1, struct player *p2);
 int roll();
 
 int main(int argc, char *argv[]){
@@ -76,9 +76,11 @@ void process_request(int fd1, int fd2){
 	//Get first player
 	read(fd1, p1, 100);
 	printf("Got First User: %s\n",p1);
+	firstPlayer.fd = fd1;
 	//Get second player
 	read(fd2, p2, 100);
 	printf("Got Second User: %s\n",p2);
+	secondPlayer.fd = fd2;
 	//make their game
 	printf("fork\n");
 	if(fork() == 0){
@@ -100,33 +102,91 @@ void process_request(int fd1, int fd2){
 int playPig(struct player p1, struct player p2){
 	int nextTurn = 1;
 	while(nextTurn){
-		playTurn(p1,p2);
-		nextTurn = updateStatus(p1,p2);
+		playTurn(&p1,&p2);
+		nextTurn = updateStatus(&p1,&p2);
 	}
 
 }
 
 //TURN
-void playTurn(struct player p1, struct player p2){
-	//Roll
-	int curDie = roll();
-	//Report
-	write(p1.fd,&curDie,sizeof(int));
-	write(p2.fd,&curDie,sizeof(int));
-	//Decide
-	read(p1.fd,&p1.choice,1);
-	read(p2.fd,&p2.choice,1);
-	printf("Rolled a: %d\n",roll);fflush(stdout);
-
+int playTurn(struct player *p1, struct player *p2){
+	int nextRound = 1;	
+	//Play a round
+	while(nextRound){
+		nextRound = playRound(p1,p2);
+	}
+	//Update Total Scores
+	p1->score += p1->tempPoints;
+	p2->score += p2->tempPoints;
+	p1->tempPoints = 0;
+	p2->tempPoints = 0;
+	//Check if game is done
+	if (p1->score >= 100){
+		return 1;
+	} else if (p2->score >= 100){
+		return 2;
+	} else { 
+		return 0;
+	}
 }
 
 //ROUND
+int playRound(struct player *p1, struct player *p2){
+	int returnStatus = 1;
+	//Roll
+	int curDie = roll();
+	//If 1 is rolled, bail out
+	if(curDie == 1){
+		returnStatus = 0;
+		write(p1->fd,"Uh oh, a one was rolled!\n",250);
+		write(p2->fd,"Uh oh, a one was rolled!\n",250);
+		if(p1->choice == ROLL){p1->tempPoints = 0;}
+		if(p2->choice == ROLL){p2->tempPoints = 0;}
+		write(p1->fd,&returnStatus,sizeof(int));
+		write(p2->fd,&returnStatus,sizeof(int));
+		return returnStatus;
+	}
+	//Update temp scores
+	if(p1->choice == ROLL){p1->tempPoints += curDie;}
+	if(p2->choice == ROLL){p2->tempPoints += curDie;}
+	//Announce current state
+	char writeBuf[250];
+	sprintf(writeBuf,"The current Roll is: %d\nThe current banked "
+			"points for each player this round is:\nPlayer 1: %d\n"
+			"Player 2: %d\n"
+			"Each Player's total points is:\nPlayer 1: %d\nPlayer 2: %d\n",
+			curDie,p1->tempPoints,p2->tempPoints,p1->score,p2->score);
+	write(p1->fd,writeBuf,250);
+	write(p2->fd,writeBuf,250);
+	//Request rollers to hold
+	if(p1->choice == ROLL){
+		printf("Waiting for player 1 to decide on roll or hold\n");
+		read(p1->fd,&p1->choice,sizeof(int));
+	}
+	if(p2->choice == ROLL){
+		printf("Waiting for player 2 to decide on roll or hold\n");
+		read(p2->fd,&p2->choice,sizeof(int));
+	}
+	if(p1->choice == HOLD && p2->choice == HOLD){
+		returnStatus = 0;
+		write(p1->fd,&returnStatus,sizeof(int));
+		write(p2->fd,&returnStatus,sizeof(int));
+		return returnStatus;
+	}
 
-int updateStatus(struct player p1, struct player p2){
+	write(p1->fd,&returnStatus,sizeof(int));
+	write(p2->fd,&returnStatus,sizeof(int));
+	return returnStatus;
+}
+
+
+
+
+int updateStatus(struct player *p1, struct player *p2){
 	int status;
-	if(p1.score >= 100 || p2.score >= 100 && p1.score != p2.score){
+	if(p1->score >= 100 || p2->score >= 100 && p1->score != p2->score){
 		status = WIN;
-	} else if(p1.score >= 100 || p2.score >= 100 && p1.score == p2.score){
+	} else if(p1->score >= 100 || p2->score >= 100 && p1->score == p2->score){
 		status = TIE;
 	} else {
 		status = CONT;
@@ -135,7 +195,7 @@ int updateStatus(struct player p1, struct player p2){
 }
 
 int roll(){
-	return 6 + rand() / (RAND_MAX / (1 - 6 + 1) + 1);
+	return (rand() % 6) + 1;
 }
 
 
@@ -144,8 +204,8 @@ int roll(){
  *	 Turns [
  *		Rounds (
  *			roll!
- *			Annouce roll, tempscores, total scores
  *			update tempscores
+ *			Annouce roll, tempscores, total scores
  *			request rollers to hold
  *			break on 1 rolled, or 2 holds
  *		)
@@ -157,8 +217,6 @@ int roll(){
  * }
  *
  */
-
-
 
 
 
