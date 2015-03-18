@@ -43,66 +43,74 @@ int main(int argc, char* argv[]){
 	fd = connect_to_server(host, port);
 	printf("Connected to Host: %s @ Port: %d\n",host,port);
 	if(fd == -1) exit(1);
-	talkServer(fd, user);
+	write(fd,user,100);
+	printf("Sent\n");
 	handShake();
 	while(!gameStatus){
 		playTurn();
-		gameStatus = updateStatus();
 	}
 	close(fd);
 	return 0;
 }
 
-void talkServer(int fd, char* msg){
-	write(fd, msg, 100);
-	printf("Sent\n");
-}
-
 void handShake(){
-	while(1){
-		printf("Waiting for opponent...\n");
-		char* handShakeBuf[250];
-		int val = read(fd, handShakeBuf, 250);
-		if(val == 250){
-			printf("%s\n",handShakeBuf);
-			break;
-		}
-		sleep(5);
+	printf("Waiting for opponent...\n");
+	char* handShakeBuf[250];
+	int val = read(fd, handShakeBuf, 250);
+	if(val == 250){
+		printf("%s\n",handShakeBuf);
 	}
 }
 
 int playTurn(){
-	char choice = ' ';
-	char score_buf[7];
-	read(fd, score_buf,7);
-	curScore = atoi(score_buf);
-	oppScore = atoi(score_buf+4);
+	char choiceBuf;
+	int choice;
 	printf("Your Current Total is: %d\n", curScore);
 	printf("Your Opponent's Total is: %d\n", oppScore);
 	printf("The Amount Rolled This Round is: %d\n", curRoll);
 	printf("Do you wish to (r)oll or (h)old? >>> ");
-	scanf("%c", &choice);
+	while(1){
+		fflush(stdout);
+		choiceBuf = getchar();
+		if(choiceBuf == 'r'){ choice = ROLL;break;}
+		if(choiceBuf == 'h'){ choice = HOLD;break;}
+		if(choiceBuf != '\n'){
+			printf("Do you wish to (r)oll or (h)old? >>> ");
+		}
+	}
+	write(fd,&choice,1);
+	gameStatus = updateStatus();
 }
 
 int updateStatus(){
-	int status;
-	if(curScore >= 100 && curScore > oppScore){
-		status = WIN;
+	read(fd,&gameStatus,sizeof(int));
+	if(gameStatus == WIN){
 		printf("Congratulations! You win!");
-	} else if(oppScore >= 100 && oppScore > curScore){
-		status = LOSE;
+	} else if(gameStatus == LOSE){
 		printf("You lost, better luck next time!");
-	} else if(curScore >= 100 && curScore == oppScore){
-		status = TIE;
+	} else if(gameStatus == TIE){
 		printf("The game ends in a tie.");
-	} else {
-		status = 0;
 	}
-	return status;
+	return gameStatus;
 }
 
 
-
+/*
+ * Game {
+ *	 Turns [
+ *		Rounds (
+ *			listen to roll, tempscores, scores
+ *			if rolling, choose to roll or hold
+ *
+ *			listen for end of turn condition scores
+ *		)
+ *		listen for end of game condition
+ *	 ]
+ * get end condition
+ * print end message
+ * }
+ *
+ */
 
 
 

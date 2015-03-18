@@ -16,28 +16,36 @@
 #define HOLD 0
 #define ROLL 1
 
+#define CONT 0
+#define WIN 1
+#define TIE 2
+
 struct player{
+	int fd;
 	char* playerName;
 	int score;
+	int tempPoints;
 	char* stringScore;
+	int choice;
 };
 
 char p1[100];
 char p2[100];
-struct player firstPlayer = {p1, 0, "000"};
-struct player secondPlayer = {p2, 0, "000"};
-int havePlayer = 0;
-int readyToPlay = 0;
+struct player firstPlayer = {0,p1, 0, 0, "000", HOLD};
+struct player secondPlayer = {0,p2, 0, 0, "000", HOLD};
 int isChild = 0;
 
 int make_server_socket_q(int portnum, int backlog);
 int make_server_socket(int portnum);
 void child_waiter(int signum);
-void process_request(int fd);
-int playPig(struct player p1, struct player p2, int fd);
+void process_request(int fd1, int fd2);
+int playPig(struct player p1, struct player p2);
+void playTurn(struct player p1, struct player p2);
+int updateStatus(struct player p1, struct player p2);
+int roll();
 
 int main(int argc, char *argv[]){
-	int sock, fd;
+	int sock, fd1, fd2;
 	int port = 50000;
 	signal(SIGCHLD, child_waiter);
 	sock = make_server_socket(port);
@@ -48,12 +56,13 @@ int main(int argc, char *argv[]){
 		if(isChild){
 			break;
 		}
-		fd = accept(sock, NULL, NULL);
-		if(fd == -1){
+		fd1 = accept(sock, NULL, NULL);
+		fd2 = accept(sock, NULL, NULL);
+		if(fd1 == -1 || fd2 == -1){
 			if(errno != EINTR) strerror(errno);
 			else break;
 		}
-		process_request(fd);
+		process_request(fd1, fd2);
 	}
 	return 0;
 }
@@ -63,52 +72,91 @@ void child_waiter(int signum){
 }
 
 
-void process_request(int fd){
-	if(havePlayer == 0){
-		//Get first player
-		havePlayer = 1;
-		readyToPlay = 0;
-		read(fd, p1, 100);
-		printf("Got First User: %s\n",p1);
-	} else {
-		//Get second player
-		havePlayer = 0;
-		readyToPlay = 1;
-		read(fd, p2, 100);
-		printf("Got Second User: %s\n",p2);
-	}
+void process_request(int fd1, int fd2){
+	//Get first player
+	read(fd1, p1, 100);
+	printf("Got First User: %s\n",p1);
+	//Get second player
+	read(fd2, p2, 100);
+	printf("Got Second User: %s\n",p2);
 	//make their game
-	if(readyToPlay == 1){
-		printf("fork\n");
-		if(fork() == 0){
-			isChild = 1;
-			firstPlayer.playerName = p1;
-			secondPlayer.playerName = p2;
-			char helloString[250] = "In game with: ";
-			strcat(helloString,p1);
-			strcat(helloString," and ");
-			strcat(helloString,p2);
-			write(fd,helloString,250);
-			playPig(firstPlayer, secondPlayer, fd);
-		}
-		havePlayer = 0;
-		readyToPlay = 0;
+	printf("fork\n");
+	if(fork() == 0){
+		isChild = 1;
+		firstPlayer.playerName = p1;
+		secondPlayer.playerName = p2;
+		char helloString[250] = "In game with: ";
+		strcat(helloString,p1);
+		strcat(helloString," and ");
+		strcat(helloString,p2);
+		write(fd1,helloString,250);
+		write(fd2,helloString,250);
+		playPig(firstPlayer, secondPlayer);
 	}
-	close(fd);
+	close(fd1);
+	close(fd2);
+}
+//GAME
+int playPig(struct player p1, struct player p2){
+	int nextTurn = 1;
+	while(nextTurn){
+		playTurn(p1,p2);
+		nextTurn = updateStatus(p1,p2);
+	}
+
 }
 
-int playPig(struct player p1, struct player p2, int fd){
-//Report scores
-char scoreBuf[7];
-strcat(scoreBuf,p1.stringScore);
-scoreBuf[4] = ' ';
-strcat(scoreBuf,p2.stringScore);
-write(fd,scoreBuf,7);
-int roll = 6 + rand() / (RAND_MAX / (1 - 6 + 1) + 1);
-printf("%d", roll);
+//TURN
+void playTurn(struct player p1, struct player p2){
+	//Roll
+	int curDie = roll();
+	//Report
+	write(p1.fd,&curDie,sizeof(int));
+	write(p2.fd,&curDie,sizeof(int));
+	//Decide
+	read(p1.fd,&p1.choice,1);
+	read(p2.fd,&p2.choice,1);
+	printf("Rolled a: %d\n",roll);fflush(stdout);
+
+}
+
+//ROUND
+
+int updateStatus(struct player p1, struct player p2){
+	int status;
+	if(p1.score >= 100 || p2.score >= 100 && p1.score != p2.score){
+		status = WIN;
+	} else if(p1.score >= 100 || p2.score >= 100 && p1.score == p2.score){
+		status = TIE;
+	} else {
+		status = CONT;
+	}
+	return status;
+}
+
+int roll(){
+	return 6 + rand() / (RAND_MAX / (1 - 6 + 1) + 1);
 }
 
 
+/*
+ * Game {
+ *	 Turns [
+ *		Rounds (
+ *			roll!
+ *			Annouce roll, tempscores, total scores
+ *			update tempscores
+ *			request rollers to hold
+ *			break on 1 rolled, or 2 holds
+ *		)
+ *		update total scores
+ *		check if game is done
+ *	 ]
+ * report end condition
+ *
+ * }
+ *
+ */
 
 
 
