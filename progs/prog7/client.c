@@ -54,13 +54,14 @@ int main(int argc, char* argv[]){
 //PLAY TURN
 int playTurn(){
 	int overallStatus;
+	char statusStr[300];
 	int turnStatus = 0;
 	choice = ROLL;
 	while(!turnStatus){
 		turnStatus = playRound();
 	}
+	read(fd,statusStr,300);
 	read(fd,&overallStatus,sizeof(int));
-	printf("Turno Endo: %d\n",overallStatus);
 	return overallStatus;
 }
 //PLAY ROUND
@@ -88,23 +89,6 @@ int playRound(){
 	read(fd,&status,sizeof(int));	
 	return status;
 }
-
-/*
- * Game {
- *	 Turns [
- *		Rounds (
- *			listen to roll, tempscores, scores
- *			if rolling, choose to roll or hold
- *
- *			listen for end of turn condition scores
- *		)
- *		listen for end of game condition
- *	 ]
- * get end condition
- * print end message
- * }
- *
- */
 
 void handShake(){
 	printf("Waiting for opponent...\n");

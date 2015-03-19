@@ -110,6 +110,8 @@ int playPig(struct player p1, struct player p2){
 //PLAY TURN
 int playTurn(struct player *p1, struct player *p2){
 	int nextRound = 0;	
+	int status;
+	char statusStr[300];
 	//Play a round
 	while(!nextRound){
 		nextRound = playRound(p1,p2);
@@ -124,14 +126,24 @@ int playTurn(struct player *p1, struct player *p2){
 	p1->choice = ROLL;
 	p2->choice = ROLL;
 	//Check if game is done
-	int status;
-	if(p1->score >= 100 || p2->score >= 100 && p1->score != p2->score){
+	if((p1->score >= 100 || p2->score >= 100) && (p1->score != p2->score)){
 		status = WIN;
-	} else if(p1->score >= 100 || p2->score >= 100 && p1->score == p2->score){
+		if(p1->score > p2->score){
+			strcat(statusStr,"Player 1 Wins!\n");
+		} else {
+			strcat(statusStr,"Player 2 Wins!\n");
+		}
+	} else if((p1->score >= 100 || p2->score >= 100) && (p1->score == p2->score)){
 		status = TIE;
+		strcat(statusStr,"Tie game!\n");
 	} else {
 		status = CONT;
+		strcat(statusStr,"\n\n");
+
 	}
+	write(p1->fd,statusStr,300);
+	write(p2->fd,statusStr,300);
+
 	write(p1->fd,&status,sizeof(int));
 	write(p2->fd,&status,sizeof(int));
 	return status;
@@ -183,27 +195,6 @@ int playRound(struct player *p1, struct player *p2){
 	write(p2->fd,&returnStatus,sizeof(int));
 	return returnStatus;
 }
-
-/*
- * Game {
- *	 Turns [
- *		Rounds (
- *			roll!
- *			update tempscores
- *			Annouce roll, tempscores, total scores
- *			request rollers to hold
- *			break on 1 rolled, or 2 holds
- *		)
- *		update total scores
- *		check if game is done
- *	 ]
- * report end condition
- *
- * }
- *
- */
-
-
 
 
 
