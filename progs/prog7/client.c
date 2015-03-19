@@ -44,30 +44,26 @@ int main(int argc, char* argv[]){
 	write(fd,user,100);
 	printf("Sent\n");
 	handShake();
+	//PLAY GAME
 	while(!gameStatus){
 		gameStatus = playTurn();
 	}
 	close(fd);
 	return 0;
 }
-
-void handShake(){
-	printf("Waiting for opponent...\n");
-	char handShakeBuf[250];
-	int val = read(fd, handShakeBuf, 250);
-	if(val == 250){
-		printf("%s\n",handShakeBuf);
-	}
-}
-
+//PLAY TURN
 int playTurn(){
-int turnStatus = 1;
-while(turnStatus){
-	turnStatus = playRound();
+	int overallStatus;
+	int turnStatus = 0;
+	choice = ROLL;
+	while(!turnStatus){
+		turnStatus = playRound();
+	}
+	read(fd,&overallStatus,sizeof(int));
+	printf("Turno Endo: %d\n",overallStatus);
+	return overallStatus;
 }
-read(fd,&gameStatus,sizeof(int));
-return gameStatus;
-}
+//PLAY ROUND
 int playRound(){
 	int status;
 	char choiceBuf;
@@ -85,12 +81,13 @@ int playRound(){
 				printf("Do you wish to continue rolling? >>> ");
 			}
 		}
-write(fd,&choice,sizeof(int));
+		write(fd,&choice,sizeof(int));
+	} else if (choice == HOLD){
+	printf("Waiting for opponent to finish rolling\n");
+	}
+	read(fd,&status,sizeof(int));	
+	return status;
 }
-read(fd,&status,sizeof(int));	
-return status;
-}
-
 
 /*
  * Game {
@@ -108,6 +105,15 @@ return status;
  * }
  *
  */
+
+void handShake(){
+	printf("Waiting for opponent...\n");
+	char handShakeBuf[250];
+	int val = read(fd, handShakeBuf, 250);
+	if(val == 250){
+		printf("%s\n",handShakeBuf);
+	}
+}
 
 
 
