@@ -61,17 +61,22 @@ int playTurn(){
 		turnStatus = playRound();
 	}
 	read(fd,statusStr,300);
+	printf("%s",statusStr);
 	read(fd,&overallStatus,sizeof(int));
 	return overallStatus;
 }
 //PLAY ROUND
 int playRound(){
 	int status;
+	int oneCheck;
 	char choiceBuf;
 	char statusBuf[250];
+	char oneStatus[100];
+	read(fd,&oneCheck,sizeof(int));
 	read(fd,statusBuf,250);
-	printf("%s",statusBuf);
-	if(choice == ROLL){
+	printf("\n%s\n",statusBuf);
+
+	if(choice == ROLL && oneCheck == 0){
 		printf("Do you wish to continue rolling? >>> ");
 		while(1){
 			fflush(stdout);
@@ -83,8 +88,9 @@ int playRound(){
 			}
 		}
 		write(fd,&choice,sizeof(int));
-	} else if (choice == HOLD){
-	printf("Waiting for opponent to finish rolling\n");
+	} else if (choice == HOLD && !oneCheck){
+		printf("Waiting for opponent to hold\n");
+	} else if (oneCheck == 1){
 	}
 	read(fd,&status,sizeof(int));	
 	return status;

@@ -26,12 +26,13 @@ struct player{
 	int score;
 	int tempPoints;
 	int choice;
+	char* rollString;
 };
 
 char p1[100];
 char p2[100];
-struct player firstPlayer = {0,p1, 0, 0, ROLL};
-struct player secondPlayer = {0,p2, 0, 0, ROLL};
+struct player firstPlayer = {0,p1, 0, 0, ROLL,"rolling"};
+struct player secondPlayer = {0,p2, 0, 0, ROLL,"rolling"};
 int isChild = 0;
 
 int make_server_socket_q(int portnum, int backlog);
@@ -49,7 +50,7 @@ int main(int argc, char *argv[]){
 	signal(SIGCHLD, child_waiter);
 	sock = make_server_socket(port);
 	if(sock == -1) exit(1);
-	printf("Begin.\n");
+	printf("SERVER START!\n");
 
 	while(1){
 		if(isChild){
@@ -86,13 +87,15 @@ void process_request(int fd1, int fd2){
 		isChild = 1;
 		firstPlayer.playerName = p1;
 		secondPlayer.playerName = p2;
-		char helloString[250] = "In game with: ";
+		char helloString[250] = "New game:\nPlayer 1 : ";
 		strcat(helloString,p1);
-		strcat(helloString," and ");
+		strcat(helloString,"\nPlayer 2 : ");
 		strcat(helloString,p2);
+		strcat(helloString,"\n");
 		write(fd1,helloString,250);
 		write(fd2,helloString,250);
 		playPig(firstPlayer, secondPlayer);
+		printf("GAME FINISHED BETWEEN %s AND %s\n",p1,p2);
 	}
 	close(fd1);
 	close(fd2);
@@ -112,6 +115,7 @@ int playTurn(struct player *p1, struct player *p2){
 	int nextRound = 0;	
 	int status;
 	char statusStr[300];
+	
 	//Play a round
 	while(!nextRound){
 		nextRound = playRound(p1,p2);
@@ -124,21 +128,25 @@ int playTurn(struct player *p1, struct player *p2){
 	p2->tempPoints = 0;
 	//Reset player choices
 	p1->choice = ROLL;
+	p1->rollString = "rolling";
 	p2->choice = ROLL;
+	p2->rollString = "rolling";
 	//Check if game is done
 	if((p1->score >= 100 || p2->score >= 100) && (p1->score != p2->score)){
 		status = WIN;
 		if(p1->score > p2->score){
-			strcat(statusStr,"Player 1 Wins!\n");
+			sprintf(statusStr,"\n%s wins\nby a score of %d - %d\n",p1->playerName,
+			p1->score,p2->score);
 		} else {
-			strcat(statusStr,"Player 2 Wins!\n");
+			sprintf(statusStr,"\n%s wins\nby a score of %d - %d\n",p2->playerName,
+			p1->score,p2->score);
 		}
 	} else if((p1->score >= 100 || p2->score >= 100) && (p1->score == p2->score)){
 		status = TIE;
-		strcat(statusStr,"Tie game!\n");
+			sprintf(statusStr,"\nTie game\nFinal score %d - %d\n",p1->score,p2->score);
 	} else {
 		status = CONT;
-		strcat(statusStr,"\n\n");
+		sprintf(statusStr,"\nEnd of turn scores:\n%s: %d\n%s: %d\n",p1->playerName,p1->score,p2->playerName,p2->score);
 
 	}
 	write(p1->fd,statusStr,300);
@@ -151,16 +159,39 @@ int playTurn(struct player *p1, struct player *p2){
 
 //PLAY ROUND
 int playRound(struct player *p1, struct player *p2){
+	char writeBuf[250];
 	int returnStatus = 0;
+	int oneFlag = 0;
 	//Roll
 	int curDie = (rand() % 6) + 1;	
 	//If 1 is rolled, bail out
 	if(curDie == 1){
 		returnStatus = 2;
-		write(p1->fd,"Uh oh, a one was rolled!\n",250);
-		write(p2->fd,"Uh oh, a one was rolled!\n",250);
-		if(p1->choice == ROLL){p1->tempPoints = 0;}
-		if(p2->choice == ROLL){p2->tempPoints = 0;}
+		oneFlag = 1;
+		write(p1->fd,&oneFlag,sizeof(int));
+		write(p2->fd,&oneFlag,sizeof(int));
+		if(p1->choice == ROLL && p2->choice == ROLL){
+		p1->tempPoints = 0;
+		p2->tempPoints = 0;
+	sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d points banked\n"
+"%s had %d points banked\nAnd you both lost them!",p1->playerName,p1->tempPoints,p2->playerName,p2->tempPoints);
+		}
+		else if(p1->choice == ROLL && p2->choice == HOLD){
+		p1->tempPoints = 0;
+	sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d points banked\n"
+"%s had %d points banked\n%s lost them, but %s's are safe!",p1->playerName,p1->tempPoints,p2->playerName,p2->tempPoints,p1->playerName,p2->playerName);
+		}
+		if(p1->choice == HOLD && p2->choice == ROLL){
+		p2->tempPoints = 0;
+	sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d points banked\n"
+"%s had %d points banked\n%s's are safe, but %s lost them!",p1->playerName,p1->tempPoints,p2->playerName,p2->tempPoints,p1->playerName,p2->playerName);
+		}
+		else if(p1->choice == HOLD && p2->choice == HOLD){
+	sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d points banked\n"
+"%s had %d points banked\nAnd they're all safe!",p1->playerName, p1->tempPoints,p2->playerName,p2->tempPoints);
+		}
+		write(p1->fd,writeBuf,250);
+		write(p2->fd,writeBuf,250);
 		write(p1->fd,&returnStatus,sizeof(int));
 		write(p2->fd,&returnStatus,sizeof(int));
 		return returnStatus;
@@ -169,20 +200,23 @@ int playRound(struct player *p1, struct player *p2){
 	if(p1->choice == ROLL){p1->tempPoints += curDie;}
 	if(p2->choice == ROLL){p2->tempPoints += curDie;}
 	//Announce current state
-	char writeBuf[250];
-	sprintf(writeBuf,"The current Roll is: %d\nThe current banked "
-			"points for each player this round is:\nPlayer 1: %d\n"
-			"Player 2: %d\n"
-			"Each Player's total points is:\nPlayer 1: %d\nPlayer 2: %d\n",
-			curDie,p1->tempPoints,p2->tempPoints,p1->score,p2->score);
+	write(p1->fd,&oneFlag,sizeof(int));
+	write(p2->fd,&oneFlag,sizeof(int));
+	sprintf(writeBuf,"The current roll is: %d\n%s has %d points banked and"
+" is %s\n%s has %d points banked and is %s\nCurrent score is:\n""%s: %d\n%s: %d\n",
+curDie,p1->playerName,p1->tempPoints,p1->rollString,p2->playerName,p2->tempPoints,p2->rollString,p1->playerName,p1->score,p2->playerName,p2->score);
 	write(p1->fd,writeBuf,250);
 	write(p2->fd,writeBuf,250);
 	//Request rollers to hold
 	if(p1->choice == ROLL){
 		read(p1->fd,&p1->choice,sizeof(int));
+		if(p1->choice == ROLL){p1->rollString = "rolling";}
+		else{p1->rollString = "holding";}
 	}
 	if(p2->choice == ROLL){
 		read(p2->fd,&p2->choice,sizeof(int));
+		if(p2->choice == ROLL){p2->rollString = "rolling";}
+		else{p2->rollString = "holding";}
 	}
 	if(p1->choice == HOLD && p2->choice == HOLD){
 		returnStatus = 1;
