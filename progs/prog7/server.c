@@ -1,3 +1,10 @@
+/*****************************************************************************/
+/* Mitch Duncan                                                              */
+/* Login ID: dunc0474                                                        */
+/* CS-202, Winter 2015                                                       */
+/* Programming Assignment 7 - server                                         */
+/* Server side program for playing 2 player swine herd pig                   */
+/*****************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -42,15 +49,25 @@ int make_server_socket(int portnum);
 void child_waiter(int signum);
 void process_request(int fd1, int fd2);
 
-int playPig(struct player p1, struct player p2);
+void playPig(struct player p1, struct player p2);
 int playTurn(struct player *p1, struct player *p2);
 int playRound(struct player *p1, struct player *p2);
 
+/*****************************************************************************/
+/* Function: main                                                            */
+/* Purpose: Opens a socket, sits listening for client players                */
+/* Parameters:                                                               */
+/*		int argc     not used                                        */
+/*		char *argv[] not used                                        */
+/* Returns:     int          standard 0 return for successful completion     */
+/*****************************************************************************/
 int main(int argc, char *argv[]){
 	int sock, fd1, fd2;
 	int port = 50000;
+
 	signal(SIGCHLD, child_waiter);
 	signal(SIGPIPE,SIG_IGN);
+
 	sock = make_server_socket(port);
 	if(sock == -1) exit(1);
 	printf("SERVER START\n");
@@ -59,14 +76,17 @@ int main(int argc, char *argv[]){
 		if(isChild){
 			break;
 		}
+
 		fd1 = accept(sock, NULL, NULL);
 		fd2 = accept(sock, NULL, NULL);
+
 		if(fd1 == -1 || fd2 == -1){
 			if(errno != EINTR) strerror(errno);
 			else break;
 		}
 		process_request(fd1, fd2);
 	}
+
 	return 0;
 }
 
@@ -74,37 +94,57 @@ void child_waiter(int signum){
 	while(waitpid(-1, NULL, WNOHANG) > 0);
 }
 
-
+/*****************************************************************************/
+/* Function: process_request                                                 */
+/* Purpose: creates two player structs, forks them into a game               */
+/* Parameters:                                                               */
+/*		int fd1      the socket file descriptor of player 1          */
+/*		int fd2      the socket file descriptor of player 2          */
+/* Returns:     void                                                         */
+/*****************************************************************************/
 void process_request(int fd1, int fd2){
 	//Get first player
 	p1Connect = read(fd1, p1, 100);
 	printf("Got First User: %s\n",p1);
 	firstPlayer.fd = fd1;
+
 	//Get second player
 	p2Connect = read(fd2, p2, 100);
 	printf("Got Second User: %s\n",p2);
 	secondPlayer.fd = fd2;
+
 	//make their game
 	printf("Make Game\n");
 	if(fork() == 0){
 		isChild = 1;
 		firstPlayer.playerName = p1;
 		secondPlayer.playerName = p2;
+
 		char helloString[250] = "New game:\nPlayer 1 : ";
 		strcat(helloString,p1);
 		strcat(helloString,"\nPlayer 2 : ");
 		strcat(helloString,p2);
 		strcat(helloString,"\n");
+
 		p1Connect = write(fd1,helloString,250);
 		p2Connect = write(fd2,helloString,250);
+
 		playPig(firstPlayer, secondPlayer);
 		printf("GAME FINISHED BETWEEN %s AND %s\n",p1,p2);
 	}
 	close(fd1);
 	close(fd2);
 }
-//PLAY GAME
-int playPig(struct player p1, struct player p2){
+
+/*****************************************************************************/
+/* Function: playPig                                                         */
+/* Purpose: sits and loops waiting for the game between the players to end   */
+/* Parameters:                                                               */
+/*	        struct player p1     the player struct of the first player   */
+/*		struct player p2     the player struct of the second player  */
+/* Returns:     void                                                         */
+/*****************************************************************************/
+void playPig(struct player p1, struct player p2){
 	int nextTurn = 0;
 	while(!nextTurn){
 		nextTurn = playTurn(&p1,&p2);
@@ -112,7 +152,18 @@ int playPig(struct player p1, struct player p2){
 
 }
 
-//PLAY TURN
+/*****************************************************************************/
+/* Function: playTurn                                                        */
+/* Purpose: plays a number of rounds of pig, waiting for a one to be rolled  */
+/*          or both players to hold. It then handles data updating           */
+/*          checks if the game is done, communicates this info to the client */
+/* Parameters:                                                               */
+/*	        struct player *p1     the player struct of the first player  */
+/*		struct player *p2     the player struct of the second player */
+/* Returns:     int status           the game status. 0 for unfinished       */
+/*                                                    1 for a victory        */
+/*                                                    2 for a tie            */
+/*****************************************************************************/
 int playTurn(struct player *p1, struct player *p2){
 	int nextRound = 0;	
 	int status;
@@ -122,33 +173,43 @@ int playTurn(struct player *p1, struct player *p2){
 	while(!nextRound){
 		nextRound = playRound(p1,p2);
 	}
+
 	//Update Total Scores
 	p1->score += p1->tempPoints;
 	p2->score += p2->tempPoints;
 	p1->tempPoints = 0;
 	p2->tempPoints = 0;
+
 	//Reset player choices
 	p1->choice = ROLL;
 	p1->rollString = "rolling";
 	p2->choice = ROLL;
 	p2->rollString = "rolling";
+
 	//Check if game is done
 	if((p1->score >= 100 || p2->score >= 100) && (p1->score != p2->score)){
 		status = WIN;
-		if(p1->score > p2->score){
-			sprintf(statusStr,"\n%s wins\nby a score of %d - %d\n",p1->playerName,
-					p1->score,p2->score);
-		} else {
-			sprintf(statusStr,"\n%s wins\nby a score of %d - %d\n",p2->playerName,
-					p1->score,p2->score);
+		if(p1->score > p2->score)
+		{
+			sprintf(statusStr,"\n%s wins\nby a score of %d - %d\n",
+			p1->playerName,p1->score,p2->score);
+		} 
+		else 
+		{
+			sprintf(statusStr,"\n%s wins\nby a score of %d - %d\n",
+			p2->playerName,p1->score,p2->score);
 		}
-	} else if((p1->score >= 100 || p2->score >= 100) && (p1->score == p2->score)){
+	} else if((p1->score>=100 || p2->score>=100)&&(p1->score==p2->score)){
 		status = TIE;
-		sprintf(statusStr,"\nTie game\nFinal score %d - %d\n",p1->score,p2->score);
-	} else{
+		sprintf(statusStr,"\nTie game\nFinal score %d - %d\n",
+		p1->score,p2->score);
+	} else {
 		status = CONT;
-		sprintf(statusStr,"\nEnd of turn scores:\n%s: %d\n%s: %d\n",p1->playerName,p1->score,p2->playerName,p2->score);
+		sprintf(statusStr,"\nEnd of turn scores:\n%s: %d\n%s: %d\n",
+		p1->playerName,p1->score,p2->playerName,p2->score);
 	}
+	
+	//Check if players still connected
 	if(p1Connect == 0 || p1Connect == -1){
 		sprintf(statusStr,"\n%s Disconnected, %s wins by default!\n",p1->playerName,p2->playerName);
 		status = -1;
@@ -162,6 +223,7 @@ int playTurn(struct player *p1, struct player *p2){
 		p1Connect = write(p1->fd,&status,sizeof(int));
 		return status;
 	}
+
 	p1Connect = write(p1->fd,statusStr,300);
 	p2Connect = write(p2->fd,statusStr,300);
 
@@ -170,56 +232,94 @@ int playTurn(struct player *p1, struct player *p2){
 	return status;
 }
 
-//PLAY ROUND
+/*****************************************************************************/
+/* Function: playRound                                                       */
+/* Purpose: plays a single round of pig, rolling and adding to temp scores   */
+/*          until both players hold or a one is rolled. Handles one rolling  */
+/*          protocol, most of the messages seen by the player at the client  */
+/* Parameters:                                                               */
+/*	        struct player *p1    the player struct of the first player   */
+/*		struct player *p2    the player struct of the second player  */
+/* Returns:     int                  the turn status. 0 for unfinished       */
+/*                                                    1 for both players held*/
+/*                                                    2 for a one rolled     */
+/*****************************************************************************/
 int playRound(struct player *p1, struct player *p2){
 	char writeBuf[250];
 	int returnStatus = 0;
 	int oneFlag = 0;
+
 	//Roll
 	int curDie = (rand() % 6) + 1;	
+
 	//If 1 is rolled, bail out
 	if(curDie == 1){
 		returnStatus = 2;
 		oneFlag = 1;
 		p1Connect = write(p1->fd,&oneFlag,sizeof(int));
 		p2Connect = write(p2->fd,&oneFlag,sizeof(int));
+		
 		if(p1->choice == ROLL && p2->choice == ROLL){
 			p1->tempPoints = 0;
 			p2->tempPoints = 0;
-			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d points banked\n"
-					"%s had %d points banked\nAnd you both lost them!",p1->playerName,p1->tempPoints,p2->playerName,p2->tempPoints);
+			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d "
+					"points banked\n%s had %d points "
+					"banked\nAnd you both lost them!",
+			p1->playerName,p1->tempPoints,p2->playerName,
+			p2->tempPoints);
 		}
-		else if(p1->choice == ROLL && p2->choice == HOLD){
+
+		if(p1->choice == ROLL && p2->choice == HOLD){
 			p1->tempPoints = 0;
-			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d points banked\n"
-					"%s had %d points banked\n%s lost them, but %s's are safe!",p1->playerName,p1->tempPoints,p2->playerName,p2->tempPoints,p1->playerName,p2->playerName);
+			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d"
+					" points banked\n%s had %d points "
+					"banked\n%s lost them, but %s's are "
+					"safe!",
+		p1->playerName,p1->tempPoints,p2->playerName,p2->tempPoints,
+		p1->playerName,p2->playerName);
 		}
+
 		if(p1->choice == HOLD && p2->choice == ROLL){
 			p2->tempPoints = 0;
-			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d points banked\n"
-					"%s had %d points banked\n%s's are safe, but %s lost them!",p1->playerName,p1->tempPoints,p2->playerName,p2->tempPoints,p1->playerName,p2->playerName);
+			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d "
+					"points banked\n%s had %d points "
+					"banked\n%s's are safe, but %s lost "
+					"them!",
+			p1->playerName,p1->tempPoints,p2->playerName,
+			p2->tempPoints,p1->playerName,p2->playerName);
 		}
-		else if(p1->choice == HOLD && p2->choice == HOLD){
-			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d points banked\n"
-					"%s had %d points banked\nAnd they're all safe!",p1->playerName, p1->tempPoints,p2->playerName,p2->tempPoints);
+
+	        if(p1->choice == HOLD && p2->choice == HOLD){
+			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d "
+					"points banked\n%s had %d points "
+					"banked\nAnd they're all safe!",
+			p1->playerName, p1->tempPoints,p2->playerName,
+			p2->tempPoints);
 		}
+
 		p1Connect = write(p1->fd,writeBuf,250);
 		p2Connect = write(p2->fd,writeBuf,250);
 		p1Connect = write(p1->fd,&returnStatus,sizeof(int));
 		p2Connect = write(p2->fd,&returnStatus,sizeof(int));
 		return returnStatus;
 	}
+
 	//Update temp scores
 	if(p1->choice == ROLL){p1->tempPoints += curDie;}
 	if(p2->choice == ROLL){p2->tempPoints += curDie;}
+
 	//Announce current state
 	p1Connect = write(p1->fd,&oneFlag,sizeof(int));
 	p2Connect = write(p2->fd,&oneFlag,sizeof(int));
 	sprintf(writeBuf,"The current roll is: %d\n%s has %d points banked and"
-			" is %s\n%s has %d points banked and is %s\nCurrent score is:\n""%s: %d\n%s: %d\n",
-			curDie,p1->playerName,p1->tempPoints,p1->rollString,p2->playerName,p2->tempPoints,p2->rollString,p1->playerName,p1->score,p2->playerName,p2->score);
+			" is %s\n%s has %d points banked and is %s\nCurrent "
+			"score is:\n""%s: %d\n%s: %d\n",
+			curDie,p1->playerName,p1->tempPoints,p1->rollString,
+			p2->playerName,p2->tempPoints,p2->rollString,
+			p1->playerName,p1->score,p2->playerName,p2->score);
 	p1Connect = write(p1->fd,writeBuf,250);
 	p2Connect = write(p2->fd,writeBuf,250);
+	
 	//Request rollers to hold
 	if(p1->choice == ROLL){
 		p1Connect = read(p1->fd,&p1->choice,sizeof(int));
@@ -243,31 +343,14 @@ int playRound(struct player *p1, struct player *p2){
 	return returnStatus;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/*****************************************************************************/
+/* Function: make_server_socket                                              */
+/* Purpose: Black box magic kernel code to make a server socket appear       */
+/* Parameters:                                                               */
+/*	        int portnum           the port on which to open the socket   */
+/*		int backlog           a black box parameter required by magic*/
+/* Returns:     int sock_id           the socket number on the network       */
+/*****************************************************************************/
 int make_server_socket(int portnum){
 	return make_server_socket_q(portnum, BACKLOG);
 }
