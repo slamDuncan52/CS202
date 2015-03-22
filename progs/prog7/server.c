@@ -147,6 +147,7 @@ void process_request(int fd1, int fd2){
 /*****************************************************************************/
 void playPig(struct player p1, struct player p2){
 	int nextTurn = 0;//flag for finishing a game (passed up)
+	srand((unsigned)time(NULL));//Seed the random roller for this game
 	while(!nextTurn){//A game is a series of turns
 		nextTurn = playTurn(&p1,&p2);//so play turns until finished
 	}
@@ -203,7 +204,7 @@ int playTurn(struct player *p1, struct player *p2){
 	} else if((p1->score>=100 || p2->score>=100)&&(p1->score==p2->score)){
 		status = TIE;//The game has finished in a tie.
 		sprintf(statusStr,"\nTie game\nFinal score %d - %d\n",
-		p1->score,p2->score)//Client message is set as such
+		p1->score,p2->score);//Client message is set as such
 	} else {//The game has not yet finished!
 		status = CONT;//Set a message of the current scores
 		sprintf(statusStr,"\nEnd of turn scores:\n%s: %d\n%s: %d\n",
@@ -264,33 +265,33 @@ int playRound(struct player *p1, struct player *p2){
 		p2Connect = write(p2->fd,&oneFlag,sizeof(int));//know
 		
 		if(p1->choice == ROLL && p2->choice == ROLL){//If both rolling
-			p1->tempPoints = 0;//Eliminate all the unsafe points
-			p2->tempPoints = 0;
 			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d "
 					"points banked\n%s had %d points "
 					"banked\nAnd you both lost them!",
 			p1->playerName,p1->tempPoints,p2->playerName,
 			p2->tempPoints);//Set the message appropriately
+			p1->tempPoints = 0;//Eliminate all the unsafe points
+			p2->tempPoints = 0;
 		}
 
 		if(p1->choice == ROLL && p2->choice == HOLD){//p2 held
-			p1->tempPoints = 0;//Only player one loses points
 			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d"
 					" points banked\n%s had %d points "
 					"banked\n%s lost them, but %s's are "
 					"safe!",
 		p1->playerName,p1->tempPoints,p2->playerName,p2->tempPoints,
 		p1->playerName,p2->playerName);
+			p1->tempPoints = 0;//Only player one loses points
 		}
 
 		if(p1->choice == HOLD && p2->choice == ROLL){//p1 held
-			p2->tempPoints = 0;//Only player two loses points
 			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d "
 					"points banked\n%s had %d points "
 					"banked\n%s's are safe, but %s lost "
 					"them!",
 			p1->playerName,p1->tempPoints,p2->playerName,
 			p2->tempPoints,p1->playerName,p2->playerName);
+			p2->tempPoints = 0;//Only player two loses points
 		}
 
 	        if(p1->choice == HOLD && p2->choice == HOLD){//both held
