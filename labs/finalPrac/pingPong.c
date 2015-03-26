@@ -16,18 +16,20 @@ int main(){
 	char pong[4] = "pong";
 	char forkPrint[4];
 	char printOut[4];
-	int pipeArr[2];
+	int pingPipe[2];
+	int pongPipe[2];
+	pipe(pingPipe);
+	pipe(pongPipe);
 	int isChild = fork();
-	pipe(pipeArr);
 	while(1){
-		if(isChild){
-			read(pipeArr[0],forkPrint,sizeof(ping));
+		if(isChild == 0){
+			read(pingPipe[0],forkPrint,sizeof(ping));
 			printf("%s\n",forkPrint);
-			write(pipeArr[1],pong,sizeof(pong));
+			write(pongPipe[1],pong,sizeof(pong));
 			sleep(1);
 		} else {
-			write(pipeArr[1],ping,sizeof(ping));
-			read(pipeArr[0],printOut,sizeof(pong));
+			write(pingPipe[1],ping,sizeof(ping));
+			read(pongPipe[0],printOut,sizeof(pong));
 			printf("%s\n",printOut);
 			sleep(1);
 		}
