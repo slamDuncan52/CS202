@@ -194,40 +194,40 @@ int playTurn(struct player *p1, struct player *p2){
 		if(p1->score > p2->score)
 		{//p1 wins here. Client's will be sent a message as such
 			sprintf(statusStr,"\n%s wins\nby a score of %d - %d\n",
-			p1->playerName,p1->score,p2->score);
+					p1->playerName,p1->score,p2->score);
 		} 
 		else 
 		{//p2 wins here. Client message is set
 			sprintf(statusStr,"\n%s wins\nby a score of %d - %d\n",
-			p2->playerName,p1->score,p2->score);
+					p2->playerName,p1->score,p2->score);
 		}
 	} else if((p1->score>=100 || p2->score>=100)&&(p1->score==p2->score)){
 		status = TIE;//The game has finished in a tie.
 		sprintf(statusStr,"\nTie game\nFinal score %d - %d\n",
-		p1->score,p2->score);//Client message is set as such
+				p1->score,p2->score);//Client message is set as such
 	} else {//The game has not yet finished!
 		status = CONT;//Set a message of the current scores
 		sprintf(statusStr,"\nEnd of turn scores:\n%s: %d\n%s: %d\n",
-		p1->playerName,p1->score,p2->playerName,p2->score);
+				p1->playerName,p1->score,p2->playerName,p2->score);
 	}
-	
+
 	//Check if players still connected
 	if(p1Connect == 0 || p1Connect == -1){//If player 1 disconnected
 		sprintf(statusStr,"\n%s Disconnected, %s wins by default!\n",
-		p1->playerName,p2->playerName);//Send a message to player 2
+				p1->playerName,p2->playerName);//Send a message to player 2
 		status = -1;//Set status that game exited early
 		p2Connect = write(p2->fd,statusStr,300);
 		p2Connect = write(p2->fd,&status,sizeof(int));
 		return status;
 	} else if(p2Connect == 0 || p2Connect == -1){//similar for p2 dc
 		sprintf(statusStr,"\n%s Disconnected, %s wins by default!\n",
-		p2->playerName,p1->playerName);
+				p2->playerName,p1->playerName);
 		status = -1;		
 		p1Connect = write(p1->fd,statusStr,300);
 		p1Connect = write(p1->fd,&status,sizeof(int));
 		return status;
 	}
-//If everyone still connected
+	//If everyone still connected
 	p1Connect = write(p1->fd,statusStr,300);//Write the status
 	p2Connect = write(p2->fd,statusStr,300);//to be read by user
 
@@ -250,10 +250,10 @@ int playTurn(struct player *p1, struct player *p2){
 /*****************************************************************************/
 int playRound(struct player *p1, struct player *p2){
 	char writeBuf[250];//The memory used to send clients the end of round
-			   //message
+	//message
 	int returnStatus = 0;//Status for turn end (passed up)
 	int oneFlag = 0;//Flag that a one has been rolled
-			//Necessary for client to know 
+	//Necessary for client to know 
 	//Roll the die!
 	int curDie = (rand() % 6) + 1;
 
@@ -263,13 +263,13 @@ int playRound(struct player *p1, struct player *p2){
 		oneFlag = 1;//Tells clients to handle a one roll
 		p1Connect = write(p1->fd,&oneFlag,sizeof(int));//Lets clients
 		p2Connect = write(p2->fd,&oneFlag,sizeof(int));//know
-		
+
 		if(p1->choice == ROLL && p2->choice == ROLL){//If both rolling
 			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d "
 					"points banked\n%s had %d points "
 					"banked\nAnd you both lost them!",
-			p1->playerName,p1->tempPoints,p2->playerName,
-			p2->tempPoints);//Set the message appropriately
+					p1->playerName,p1->tempPoints,p2->playerName,
+					p2->tempPoints);//Set the message appropriately
 			p1->tempPoints = 0;//Eliminate all the unsafe points
 			p2->tempPoints = 0;
 		}
@@ -279,8 +279,8 @@ int playRound(struct player *p1, struct player *p2){
 					" points banked\n%s had %d points "
 					"banked\n%s lost them, but %s's are "
 					"safe!",
-		p1->playerName,p1->tempPoints,p2->playerName,p2->tempPoints,
-		p1->playerName,p2->playerName);
+					p1->playerName,p1->tempPoints,p2->playerName,p2->tempPoints,
+					p1->playerName,p2->playerName);
 			p1->tempPoints = 0;//Only player one loses points
 		}
 
@@ -289,17 +289,17 @@ int playRound(struct player *p1, struct player *p2){
 					"points banked\n%s had %d points "
 					"banked\n%s's are safe, but %s lost "
 					"them!",
-			p1->playerName,p1->tempPoints,p2->playerName,
-			p2->tempPoints,p1->playerName,p2->playerName);
+					p1->playerName,p1->tempPoints,p2->playerName,
+					p2->tempPoints,p1->playerName,p2->playerName);
 			p2->tempPoints = 0;//Only player two loses points
 		}
 
-	        if(p1->choice == HOLD && p2->choice == HOLD){//both held
+		if(p1->choice == HOLD && p2->choice == HOLD){//both held
 			sprintf(writeBuf,"Uh oh! A one was rolled!\n%s had %d "
 					"points banked\n%s had %d points "
 					"banked\nAnd they're all safe!",
-			p1->playerName, p1->tempPoints,p2->playerName,
-			p2->tempPoints);//No points lost!
+					p1->playerName, p1->tempPoints,p2->playerName,
+					p2->tempPoints);//No points lost!
 		}
 
 		p1Connect = write(p1->fd,writeBuf,250);//Do the writes
@@ -324,7 +324,7 @@ int playRound(struct player *p1, struct player *p2){
 			p1->playerName,p1->score,p2->playerName,p2->score);
 	p1Connect = write(p1->fd,writeBuf,250);//Writes the big status message
 	p2Connect = write(p2->fd,writeBuf,250);
-	
+
 	//Request rollers to hold
 	if(p1->choice == ROLL){//Player one is rolling?
 		p1Connect = read(p1->fd,&p1->choice,sizeof(int));//Get response
